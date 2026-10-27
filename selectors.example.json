@@ -1,0 +1,17 @@
+{
+  "NOTE": "UNVERIFIED: replace selectors only after inspecting the live PokerNow UI in your authorized game.",
+  "hero_stack": "",
+  "hero_cards": "",
+  "board_cards": "",
+  "pot": "",
+  "action_to_hero": "",
+  "fold_button": "",
+  "check_button": "",
+  "call_button": "",
+  "raise_button": "",
+  "raise_input": "",
+  "chat_input": "",
+  "chat_send_button": "",
+  "leave_seat_button": "",
+  "hand_log": ""
+}

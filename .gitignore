@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.sqlite3
+.bot-profile/
+bot_log.jsonl
+bot_error.png
+config.json
+web/node_modules/
+web/dist/
+web/.output/
+web/.tanstack/
+web/.env
+diagnostics/table.png
+*.pyc
+*.egg-info/
+.DS_Store

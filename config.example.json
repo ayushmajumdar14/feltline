@@ -1,0 +1,16 @@
+{
+  "table_url": "https://www.pokernow.club/",
+  "private_bot_game_confirmed": false,
+  "hero_player_id": "",
+  "buy_in": 100,
+  "small_blind": 1,
+  "big_blind": 2,
+  "minutes_after_time": 30,
+  "database_path": "players.sqlite3",
+  "selectors_path": "selectors.pokernow.json",
+  "profile_dir": ".bot-profile",
+  "bot_nickname": "pokerbot",
+  "mode": "observe",
+  "headless": false,
+  "strategy": "theory"
+}

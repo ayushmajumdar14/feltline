@@ -1,0 +1,161 @@
+{
+  "timestamp": "2026-10-23T05:52:13.431251+00:00",
+  "origin": "www.pokernow.com",
+  "title": "Poker Now - Poker with Friends",
+  "controls": [
+    {
+      "index": 0,
+      "tag": "button",
+      "role": null,
+      "text": "OPTIONS",
+      "placeholder": null,
+      "type": "button",
+      "title": null,
+      "disabled": false,
+      "visible": true
+    },
+    {
+      "index": 1,
+      "tag": "button",
+      "role": null,
+      "text": "SIT",
+      "placeholder": null,
+      "type": "button",
+      "title": null,
+      "disabled": false,
+      "visible": true
+    },
+    {
+      "index": 2,
+      "tag": "button",
+      "role": null,
+      "text": "SIT",
+      "placeholder": null,
+      "type": "button",
+      "title": null,
+      "disabled": false,
+      "visible": true
+    },
+    {
+      "index": 3,
+      "tag": "button",
+      "role": null,
+      "text": "SIT",
+      "placeholder": null,
+      "type": "button",
+      "title": null,
+      "disabled": false,
+      "visible": true
+    },
+    {
+      "index": 4,
+      "tag": "button",
+      "role": null,
+      "text": "SIT",
+      "placeholder": null,
+      "type": "button",
+      "title": null,
+      "disabled": false,
+      "visible": true
+    },
+    {
+      "index": 5,
+      "tag": "button",
+      "role": null,
+      "text": "SIT",
+      "placeholder": null,
+      "type": "button",
+      "title": null,
+      "disabled": false,
+      "visible": true
+    },
+    {
+      "index": 6,
+      "tag": "button",
+      "role": null,
+      "text": "SIT",
+      "placeholder": null,
+      "type": "button",
+      "title": null,
+      "disabled": false,
+      "visible": true
+    },
+    {
+      "index": 7,
+      "tag": "button",
+      "role": null,
+      "text": "SIT",
+      "placeholder": null,
+      "type": "button",
+      "title": null,
+      "disabled": false,
+      "visible": true
+    },
+    {
+      "index": 8,
+      "tag": "button",
+      "role": null,
+      "text": "SOUND",
+      "placeholder": null,
+      "type": "button",
+      "title": null,
+      "disabled": false,
+      "visible": true
+    },
+    {
+      "index": 9,
+      "tag": "button",
+      "role": null,
+      "text": "LOG / LEDGER",
+      "placeholder": null,
+      "type": "button",
+      "title": null,
+      "disabled": false,
+      "visible": true
+    },
+    {
+      "index": 10,
+      "tag": "button",
+      "role": null,
+      "text": "Expand/Collapse",
+      "placeholder": null,
+      "type": "button",
+      "title": null,
+      "disabled": false,
+      "visible": true
+    },
+    {
+      "index": 11,
+      "tag": "button",
+      "role": null,
+      "text": "NEW MESSAGE",
+      "placeholder": null,
+      "type": "button",
+      "title": null,
+      "disabled": false,
+      "visible": true
+    },
+    {
+      "index": 12,
+      "tag": "button",
+      "role": null,
+      "text": "0 muted",
+      "placeholder": null,
+      "type": "button",
+      "title": null,
+      "disabled": false,
+      "visible": false
+    },
+    {
+      "index": 13,
+      "tag": "button",
+      "role": null,
+      "text": "JOIN",
+      "placeholder": null,
+      "type": "button",
+      "title": null,
+      "disabled": false,
+      "visible": true
+    }
+  ]
+}

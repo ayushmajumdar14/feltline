@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS pokernow_id text, ADD COLUMN IF NOT EXISTS bio text NOT NULL DEFAULT '';

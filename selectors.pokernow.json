@@ -1,0 +1,16 @@
+{
+  "NOTE": "Verified against the live pokernow.com table UI (game client 0.1.72) on 2026-10-23.",
+  "fold_button": ".game-decisions-ctn .action-buttons button.fold",
+  "check_button": ".game-decisions-ctn .action-buttons button.check",
+  "call_button": ".game-decisions-ctn .action-buttons button.call",
+  "raise_button": ".game-decisions-ctn .action-buttons button.raise",
+  "raise_input": ".game-decisions-ctn form.raise-controller-form input.value",
+  "raise_submit": ".game-decisions-ctn form.raise-controller-form input[type=submit].bet",
+  "raise_back": ".game-decisions-ctn form.raise-controller-form button.back",
+  "action_bar": ".game-decisions-ctn > .action-buttons",
+  "seat_button": ".table-player-seat-button",
+  "nickname_input": "input[placeholder='Your Name']",
+  "stack_input": "input[placeholder='Intended Stack']",
+  "request_seat_button": "button:has-text('Request the Seat')",
+  "dismiss_buttons": ["button:has-text('Ok, I got it')", "#accept-tos-button"]
+}

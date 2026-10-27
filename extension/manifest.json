@@ -1,0 +1,45 @@
+{
+  "manifest_version": 3,
+  "name": "Feltline",
+  "version": "0.1.0",
+  "description": "Suggested actions for Poker Now private tables. You confirm every move unless auto-play is on.",
+  "permissions": ["storage", "tabs"],
+  "host_permissions": [
+    "https://www.pokernow.com/*",
+    "https://www.pokernow.club/*",
+    "https://feltline-ten.vercel.app/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
+  "background": { "service_worker": "background.js" },
+  "action": {
+    "default_title": "Feltline",
+    "default_popup": "popup.html",
+    "default_icon": { "16": "icons/16.png", "48": "icons/48.png", "128": "icons/128.png" }
+  },
+  "icons": { "16": "icons/16.png", "48": "icons/48.png", "128": "icons/128.png" },
+  "content_scripts": [
+    {
+      "matches": ["https://www.pokernow.com/games/*", "https://www.pokernow.club/games/*"],
+      "js": ["pokernow-hook.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://www.pokernow.com/games/*", "https://www.pokernow.club/games/*"],
+      "js": ["tracker.js", "pokernow-bridge.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://feltline-ten.vercel.app/*",
+        "http://localhost:8080/*",
+        "http://localhost:8081/*",
+        "http://127.0.0.1:8080/*",
+        "http://127.0.0.1:8081/*"
+      ],
+      "js": ["hud-bridge.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

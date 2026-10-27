@@ -80,11 +80,12 @@ def main():
     hud=sub.add_parser("serve",help="run the Feltline HUD API for the local UI")
     hud.add_argument("--host",default="127.0.0.1")
     hud.add_argument("--port",type=int,default=8765)
+    hud.add_argument("--cloud",action="store_true",help="push live tables to the public Feltline site (Supabase)")
     args=parser.parse_args()
     if args.command=="serve":
         from .server import serve
         config=json.loads(Path(args.config).read_text())
-        asyncio.run(serve(config, args.host, args.port))
+        asyncio.run(serve(config, args.host, args.port, cloud=args.cloud))
         return
     if args.command=="simulate":
         from .sim import simulate

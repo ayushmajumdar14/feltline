@@ -51,9 +51,12 @@ function Landing() {
             private book of the players you face. Nothing is clicked for you unless you turn on auto-play for a table
             where everyone agreed.
           </p>
-          <div className="mt-7 flex gap-3">
+          <div className="mt-7 flex flex-wrap gap-3">
             <Button asChild variant="take" size="lg">
               <Link to={signedIn ? "/tables" : "/auth"}>{signedIn ? "Go to tables" : "Create workspace"}</Link>
+            </Button>
+            <Button asChild variant="outline" size="lg">
+              <Link to="/install">Get the Chrome extension</Link>
             </Button>
           </div>
           <p className="mt-4 text-xs text-muted-foreground">Not a casino. No real-money wallet. No public rooms.</p>

@@ -6,6 +6,7 @@ import { opponentsQ, settingsQ, tablesQ, useSetTableStatus, useStats } from "@/l
 import { ACTIONS, autoplayDelayMs, formatSuggestion, pct, type Action } from "@/lib/poker";
 import { advanceDemo, dealNextDemoHand } from "@/lib/demo-stream";
 import { emitHud, HUD_SOURCE } from "@/lib/hud-events";
+import { suggestLive, type LiveTableState } from "@/lib/suggest";
 import { isLocalBot } from "@/lib/local";
 import * as bot from "@/lib/bot-api";
 import { PlayingCard } from "@/components/hud/PlayingCard";
@@ -44,7 +45,7 @@ function CoachPage() {
 
   const live = useQuery({
     queryKey: ["live", tableId],
-    refetchInterval: isLocalBot() ? 1500 : false,
+    refetchInterval: 1500,
     queryFn: async () => {
       if (isLocalBot()) {
         const data = await bot.getLive(tableId);
@@ -75,6 +76,26 @@ function CoachPage() {
     return () => ws.close();
   }, [tableId, qc]);
 
+  useEffect(() => {
+    if (isLocalBot() || !tableId) return;
+    let remove = () => {};
+    import("@/integrations/supabase/client").then(({ supabase }) => {
+      const ch = supabase
+        .channel(`live-${tableId}`)
+        .on("postgres_changes", { event: "*", schema: "public", table: "hands", filter: `table_id=eq.${tableId}` }, () =>
+          qc.invalidateQueries({ queryKey: ["live", tableId] }),
+        )
+        .on("postgres_changes", { event: "*", schema: "public", table: "suggestions", filter: `table_id=eq.${tableId}` }, () =>
+          qc.invalidateQueries({ queryKey: ["live", tableId] }),
+        )
+        .subscribe();
+      remove = () => {
+        supabase.removeChannel(ch);
+      };
+    });
+    return () => remove();
+  }, [tableId, qc]);
+
   const [selected, setSelected] = useState<string | null>(null);
   const [overrideOpen, setOverrideOpen] = useState(false);
   const [ovAction, setOvAction] = useState<Action>("check");
@@ -82,26 +103,56 @@ function CoachPage() {
   const [busy, setBusy] = useState(false);
   const [autoOpen, setAutoOpen] = useState(false);
   const [events, setEvents] = useState<string[]>([]);
+  const [extLive, setExtLive] = useState<LiveTableState | null>(null);
 
-  const oppById = useMemo(() => new Map((opponents.data ?? []).map((o) => [o.id, o])), [opponents.data]);
-  const hand = live.data?.hand;
+  const extOverlay = useMemo(() => {
+    if (isLocalBot() || !table || table.is_demo || !extLive) return null;
+    if (table.game_id && extLive.game_id && table.game_id !== extLive.game_id) return null;
+    const sug = extLive.hero_turn || extLive.to_act === "hero" ? suggestLive(extLive, (settings.data?.strategy as "theory" | "equity") || "theory") : null;
+    return {
+      hand: {
+        id: `ext-${extLive.game_id}-${extLive.hand_number}`,
+        hand_number: extLive.hand_number,
+        board: extLive.board,
+        raw: {
+          hero_cards: extLive.hero_cards,
+          pot: extLive.pot,
+          live: true,
+          street: extLive.street,
+          hero_stack: extLive.hero_stack,
+        } as Raw,
+      },
+      players: extLive.seats.map((s) => ({ id: s.player_id, opponent_id: s.player_id, seat: s.seat, stack: s.stack })),
+      actions: [] as { actor: string; action: string; amount: number | null; street: string }[],
+      suggestions: sug ? [sug] : [],
+    };
+  }, [extLive, table, settings.data?.strategy]);
+
+  const pack = extOverlay ?? live.data;
+  const oppById = useMemo(() => {
+    const m = new Map<string, { display_name?: string | null; player_id?: string }>();
+    for (const o of opponents.data ?? []) m.set(o.id, o);
+    for (const s of extLive?.seats ?? []) m.set(s.player_id, { display_name: s.name, player_id: s.player_id });
+    return m;
+  }, [opponents.data, extLive]);
+  const hand = pack?.hand;
   const raw = (hand?.raw ?? {}) as Raw;
-  const pending = live.data?.suggestions.find((s) => s.accepted === "pending");
+  const pending = pack?.suggestions.find((s) => s.accepted === "pending");
   const isAuto = table?.status === "autoplay";
-  const selId = selected ?? live.data?.players[0]?.opponent_id ?? null;
+  const selId = selected ?? pack?.players[0]?.opponent_id ?? null;
 
-  // listen to HUD events (from the extension later, from ourselves now)
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
       if (e.origin !== window.location.origin || e.data?.source !== HUD_SOURCE) return;
       setEvents((prev) => [`${new Date().toLocaleTimeString()} ${e.data.type}`, ...prev].slice(0, 6));
+      if (e.data.from === "extension" && e.data.type === "table.state") setExtLive(e.data as LiveTableState);
     };
     window.addEventListener("message", onMsg);
     return () => window.removeEventListener("message", onMsg);
   }, []);
 
   useEffect(() => {
-    if (!hand) return;
+    if (!hand || String(hand.id).startsWith("ext-")) return;
     emitHud({
       type: "table.state",
       game_id: table?.game_id ?? "",
@@ -125,7 +176,7 @@ function CoachPage() {
       const actualSize = kind === "taken" ? pending.size : kind === "overridden" ? size ?? null : null;
       if (isLocalBot()) {
         await bot.postDecide(table.id, { kind, action: actual, size: actualSize, id: pending.id });
-      } else {
+      } else if (!String(pending.id).startsWith("ext-")) {
         const { supabase } = await import("@/integrations/supabase/client");
         const { error } = await supabase.from("suggestions").update({ accepted: kind, actual_action: actual, actual_size: actualSize }).eq("id", pending.id);
         if (error) throw error;
@@ -201,8 +252,15 @@ function CoachPage() {
   if (tables.isLoading) return <p className="text-muted-foreground">Loading…</p>;
   if (!table) return <p className="text-muted-foreground">Table not found. <Link to="/tables" className="text-gold underline">Back to tables</Link></p>;
 
-  const connection = !table.is_demo && !settings.data?.extension_connected ? "Disconnected" : pending ? "Your action" : raw.live ? "Waiting for turn" : "Watching";
-  const heroActs = (live.data?.actions ?? []).filter((a) => a.street === (raw.street ?? "flop"));
+  const extOn = Boolean(extLive) && !table.is_demo;
+  const connection = !table.is_demo && !extOn && !settings.data?.extension_connected && !isLocalBot()
+    ? "Disconnected"
+    : pending
+      ? "Your action"
+      : raw.live
+        ? "Waiting for turn"
+        : "Watching";
+  const heroActs = (pack?.actions ?? []).filter((a) => a.street === (raw.street ?? "flop"));
 
   return (
     <div className="space-y-3">
@@ -252,9 +310,7 @@ function CoachPage() {
       />
 
       {!hand ? (
-        <div className="hud-panel p-10 text-center text-muted-foreground">
-          Waiting for the extension to send <span className="font-mono">table.state</span> from this Poker Now table. Try the Demo table to click through a hand.
-        </div>
+        <WaitingForLive table={table} connected={extOn || !!settings.data?.extension_connected} />
       ) : (
         <div className="grid gap-3 lg:grid-cols-[1fr_1.15fr_1fr]">
           {/* Center first on mobile */}
@@ -355,10 +411,10 @@ function CoachPage() {
               </div>
             </div>
             <div className="divide-y">
-              {(live.data?.players ?? []).map((p) => {
+              {(pack?.players ?? []).map((p) => {
                 const o = oppById.get(p.opponent_id);
                 const s = stats.get(p.opponent_id);
-                const folded = (live.data?.actions ?? []).some((a) => a.actor === p.opponent_id && a.action === "fold");
+                const folded = (pack?.actions ?? []).some((a) => a.actor === p.opponent_id && a.action === "fold");
                 return (
                   <button
                     key={p.id}
@@ -389,6 +445,49 @@ function CoachPage() {
           </section>
         </div>
       )}
+    </div>
+  );
+}
+
+function WaitingForLive({ table, connected }: { table: { is_demo: boolean; pokernow_url: string; nickname: string | null; game_id: string | null }; connected: boolean }) {
+  const local = isLocalBot();
+  if (table.is_demo) {
+    return <div className="hud-panel p-10 text-center text-muted-foreground">Loading the demo hand…</div>;
+  }
+  if (local) {
+    return (
+      <div className="hud-panel space-y-3 p-8 text-center">
+        <p className="font-display text-xl font-semibold uppercase">Opening Poker Now</p>
+        <p className="text-sm text-muted-foreground">
+          Chromium should join {table.nickname ?? table.game_id}. A suggestion appears when it is your turn. Keep this tab open and do not click inside the bot window.
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="hud-panel mx-auto max-w-xl space-y-4 p-8 text-center">
+      <p className="font-display text-xl font-semibold uppercase">{connected ? "Extension connected — waiting for a hand" : "Install the Feltline Chrome extension"}</p>
+      <p className="text-sm text-muted-foreground">
+        Anyone can coach a private table from this website. Install the extension once, add the table link here, then open that Poker Now game in the same Chrome profile.
+      </p>
+      <ol className="space-y-1 text-left text-sm text-muted-foreground">
+        <li>
+          1.{" "}
+          <a href="/feltline-extension.zip" download="feltline-extension.zip" className="text-gold underline">
+            Download the extension zip
+          </a>{" "}
+          — not GitHub, just the extension.
+        </li>
+        <li>2. Unzip, then Chrome → chrome://extensions → Developer mode → Load unpacked → that folder</li>
+        <li>3. Open {table.pokernow_url} and keep this coach tab open</li>
+      </ol>
+      <p className="text-sm text-muted-foreground">
+        Or try the{" "}
+        <Link to="/tables" className="text-gold underline">
+          Demo table
+        </Link>{" "}
+        with no extension.
+      </p>
     </div>
   );
 }

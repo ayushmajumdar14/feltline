@@ -283,7 +283,61 @@ def create_app(config, bridge: HudBridge):
     return app
 
 
-async def serve(config, host="127.0.0.1", port=8765):
+async def _connect_live(config, bridge: HudBridge, table, sit=True):
+    if not config.get("private_bot_game_confirmed"):
+        raise RuntimeError("private_bot_game_confirmed must be true in config.json")
+    if bridge.task and not bridge.task.done():
+        return False
+    config["table_url"] = table["pokernow_url"]
+    mode = "play" if table.get("status") == "autoplay" else "observe"
+    session = LiveTable(config, mode, bridge=bridge)
+    bridge.session = session
+    bridge.table_id = table["id"]
+    if not bridge.store.get_table(table["id"]):
+        now = bridge.store._now()
+        bridge.store.db.execute(
+            "INSERT OR REPLACE INTO hud_tables(id,pokernow_url,game_id,nickname,is_demo,status,last_seen_at,created_at) "
+            "VALUES (?,?,?,?,0,?,?,?)",
+            (table["id"], table["pokernow_url"], table.get("game_id") or table["id"],
+             table.get("nickname") or table.get("game_id"), "suggesting", now, now))
+        bridge.store.db.commit()
+    else:
+        bridge.store.update_table(table["id"], status="suggesting" if mode == "observe" else "autoplay")
+    bridge.task = asyncio.create_task(session.run(sit=sit))
+    print(f"Companion opening {table.get('pokernow_url')}")
+    return True
+
+
+async def _cloud_loop(config, bridge: HudBridge):
+    from .cloud import CloudHud
+    cloud = CloudHud(config)
+    if not cloud.enabled:
+        print("serve --cloud: missing cloud.url / email / password")
+        return
+    await cloud.login()
+    bridge.cloud = cloud
+    await cloud.set_connected(True)
+    try:
+        while True:
+            tables = await cloud.list_tables()
+            wanted = [t for t in tables if not t.get("is_demo") and t.get("status") in ("watching", "suggesting", "autoplay")]
+            if wanted and (not bridge.task or bridge.task.done()):
+                table = wanted[0]
+                try:
+                    await _connect_live(config, bridge, table, sit=True)
+                    await cloud.touch_table(table["id"], "suggesting")
+                except Exception as exc:
+                    print(f"cloud connect failed: {exc}")
+            await asyncio.sleep(3)
+    finally:
+        try:
+            await cloud.set_connected(False)
+        except Exception:
+            pass
+        await cloud.close()
+
+
+async def serve(config, host="127.0.0.1", port=8765, cloud=False):
     store = PlayerStore(config["database_path"])
     store.ensure_settings(config)
     seed_demo(store)
@@ -298,10 +352,16 @@ async def serve(config, host="127.0.0.1", port=8765):
     site = web.TCPSite(runner, host, port)
     await site.start()
     print(f"Feltline API on http://{host}:{port}  (UI: cd web && npm run dev)")
+    companion = None
+    if cloud or (config.get("cloud") or {}).get("email"):
+        companion = asyncio.create_task(_cloud_loop(config, bridge))
+        print("Cloud companion on — added tables on feltline-ten.vercel.app will open in Chromium.")
     try:
         while True:
             await asyncio.sleep(3600)
     finally:
+        if companion:
+            companion.cancel()
         if bridge.session:
             bridge.session.stop = True
         await runner.cleanup()

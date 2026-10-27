@@ -11,6 +11,7 @@ web/dist/
 web/.output/
 web/.tanstack/
 web/.env
+web/.vercel/
 diagnostics/table.png
 *.pyc
 *.egg-info/

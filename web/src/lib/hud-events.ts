@@ -14,6 +14,12 @@ export type HudEvent =
       hero_cards: string[];
       seats: { seat: number; player_id: string; name: string; stack: number; in_hand: boolean }[];
       to_act: "hero" | string;
+      from?: "extension";
+      hero_stack?: number;
+      amount_to_call?: number;
+      min_raise_to?: number | null;
+      big_blind?: number;
+      hero_turn?: boolean;
     }
   | { type: "table.suggestion"; action: string; size: number | null; reason: string; confidence: number }
   | { type: "user.decision"; decision: "take" | "override" | "ignore"; action?: string | undefined; size?: number | null | undefined }

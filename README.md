@@ -59,5 +59,30 @@ poker-agent --config config.json player-stats helo
 poker-agent simulate theory equity --deals 3000 --seed 11
 ```
 
+## Public website (Vercel + Supabase)
+
+Public HUD: [https://feltline-ten.vercel.app](https://feltline-ten.vercel.app). Each visitor signs up; Supabase keeps their profile, tables, opponents and hands behind row-level security.
+
+**Add table** on the website saves the Poker Now link. Live play uses the **Chrome extension** (`extension/` in this repo) — no terminal for other people:
+
+1. Chrome → `chrome://extensions` → Developer mode → Load unpacked → `extension/`
+2. Sign in on the site and add the table link
+3. Open that Poker Now game in the same Chrome profile
+4. Take / Override / Ignore on the Feltline coach tab; the extension clicks on Poker Now
+
+The Demo table works with no extension. Auto-play still needs the Settings consent checklist. Private tables only.
+
+On [Vercel](https://vercel.com/new) import `ayushmajumdar14/feltline`, set **Root Directory** to `web`, and add:
+
+```
+VITE_LOCAL_BOT=0
+VITE_SUPABASE_URL
+VITE_SUPABASE_PUBLISHABLE_KEY
+SUPABASE_URL
+SUPABASE_PUBLISHABLE_KEY
+```
+
+In the Supabase project, add the Vercel URL to Auth → Redirect URLs and to allowed origins. Signup already creates a `profiles` row, default settings, and a demo table (`handle_new_user` in `web/drizzle/migrations`).
+
 ## Limits
 Preflop uses charts. Flops and turns use range equity plus frequency rules. Only heads-up rivers are solved. Multiway pots fall back to range equity. It is an approximation of sound theory, not GTO.

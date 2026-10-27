@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -158,14 +158,20 @@ function SettingsPage() {
         {!unlocked && <p className="text-xs text-muted-foreground">Auto-play as a default is locked until the checklist is complete.</p>}
         <div className="flex items-center justify-between rounded bg-muted p-3">
           <div>
-            <p className="font-semibold">Chrome extension</p>
+            <p className="font-semibold">Live companion</p>
             <p className={s.extension_connected ? "text-sm text-success" : "text-sm text-muted-foreground"}>
-              {s.extension_connected ? "Extension connected" : "Not connected"}
+              {s.extension_connected ? "Companion connected" : "Not connected"}
             </p>
           </div>
-          <Switch checked={s.extension_connected} onCheckedChange={(v) => update({ extension_connected: v })} aria-label="Mock extension connection" />
+          {isLocalBot() && (
+            <Switch checked={s.extension_connected} onCheckedChange={(v) => update({ extension_connected: v })} aria-label="Companion connection" />
+          )}
         </div>
-        <p className="text-[11px] text-muted-foreground">Demo toggle — the real extension will report this itself.</p>
+        <p className="text-[11px] text-muted-foreground">
+          {isLocalBot()
+            ? "The local API sets this when Chromium is attached."
+            : "Turns on when the Feltline Chrome extension is feeding this tab."}
+        </p>
       </Panel>
 
       <Panel title="Auto-play consent checklist" className="md:col-span-2">
@@ -181,8 +187,27 @@ function SettingsPage() {
         </p>
       </Panel>
 
-      <Panel title="Extension event contract" className="md:col-span-2">
-        <p className="text-sm text-muted-foreground">The HUD listens for these messages. The extension sends table state and suggestions; the HUD sends decisions and the auto-play flag.</p>
+      {!isLocalBot() && (
+        <Panel title="Chrome extension" className="md:col-span-2">
+          <p className="text-sm text-muted-foreground">
+            Other people do not need a terminal. They install the Feltline extension, sign in here, add a table link, and open that Poker Now game in the same Chrome profile.
+          </p>
+          <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
+            <li>
+              <a href="/feltline-extension.zip" download="feltline-extension.zip" className="text-gold underline">
+                Download the extension zip
+              </a>{" "}
+              (or see the <Link to="/install" className="text-gold underline">install page</Link>). No GitHub.
+            </li>
+            <li>Unzip it, then Chrome → chrome://extensions → Developer mode → Load unpacked → that folder</li>
+            <li>Add the table on this site, then open the game in Chrome</li>
+            <li>Take / Override / Ignore here — the extension clicks on Poker Now</li>
+          </ol>
+        </Panel>
+      )}
+
+      <Panel title="HUD event contract" className="md:col-span-2">
+        <p className="text-sm text-muted-foreground">Live table state is either pushed by the local companion or, on this machine, by poker-agent serve.</p>
         <pre className="overflow-x-auto rounded bg-sidebar p-3 font-mono text-xs">{CONTRACT_DOC}</pre>
       </Panel>
 

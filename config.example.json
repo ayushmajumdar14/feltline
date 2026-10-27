@@ -12,5 +12,11 @@
   "bot_nickname": "pokerbot",
   "mode": "observe",
   "headless": false,
-  "strategy": "theory"
+  "strategy": "theory",
+  "cloud": {
+    "url": "https://YOUR-LOVABLE-PROJECT.lovable.cloud",
+    "publishable_key": "sb_publishable_...",
+    "email": "you@example.com",
+    "password": "your Feltline password"
+  }
 }

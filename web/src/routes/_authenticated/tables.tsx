@@ -49,7 +49,7 @@ function TablesPage() {
     setUrl("");
     setNick("");
     qc.invalidateQueries({ queryKey: ["tables"] });
-    toast.success("Table added. Suggestions only until you turn on auto-play.");
+    toast.success(isLocalBot() ? "Table added. Opening it in the coach will start Chromium." : "Table saved. Open this game in Chrome with the Feltline extension, then open the coach.");
   }
 
   const list = tables.data ?? [];
@@ -60,6 +60,19 @@ function TablesPage() {
         <Input placeholder="Nickname (optional)" className="md:max-w-56" value={nick} onChange={(e) => setNick(e.target.value)} />
         <Button type="submit" variant="take">Add table</Button>
       </form>
+      {!isLocalBot() && (
+        <p className="text-sm text-muted-foreground">
+          Add any private Poker Now link, then{" "}
+          <a href="/feltline-extension.zip" download="feltline-extension.zip" className="text-gold underline">
+            download the extension zip
+          </a>{" "}
+          and load it in Chrome.{" "}
+          <Link to="/install" className="text-gold underline">
+            Install steps
+          </Link>
+          . The Demo table works with no extension.
+        </p>
+      )}
 
       {tables.isLoading ? (
         <p className="text-muted-foreground">Loading tables…</p>

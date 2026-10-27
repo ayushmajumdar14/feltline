@@ -192,6 +192,7 @@ class HudBridge:
         self.decision = None
         self.pending_id = None
         self.snapshot = None
+        self.cloud = None
 
     @property
     def autoplay(self) -> bool:
@@ -219,6 +220,11 @@ class HudBridge:
         self.snapshot = snap
         if snap and snap.get("state"):
             await self.broadcast({"source": "table-coach", **snap["state"]})
+        if self.cloud and snap:
+            try:
+                await self.cloud.push_snapshot(self.table_id, snap, table.tracker.me)
+            except Exception as exc:
+                print(f"cloud push failed: {exc}")
 
     async def offer(self, table, state, decision: Decision, street: str):
         size = decision.amount if decision.action in (Action.BET, Action.RAISE) else None
@@ -229,6 +235,16 @@ class HudBridge:
         self.decision = None
         self.decision_event = asyncio.Event()
         await self.publish_state(table)
+        if self.cloud:
+            try:
+                cloud_sug = await self.cloud.push_suggestion(
+                    self.table_id, state.hand_id, street, decision.action.value, size,
+                    decision.reason, suggestion_confidence(decision.reason))
+                if cloud_sug and cloud_sug.get("id"):
+                    self.pending_id = cloud_sug["id"]
+                    sug = {**sug, **cloud_sug}
+            except Exception as exc:
+                print(f"cloud suggestion failed: {exc}")
         await self.broadcast({
             "source": "table-coach", "type": "table.suggestion",
             "action": decision.action.value, "size": size,
@@ -238,10 +254,26 @@ class HudBridge:
         return sug
 
     async def wait_decision(self, timeout=180):
+        async def poll_cloud():
+            if not self.cloud or not self.pending_id:
+                return
+            while not self.decision_event.is_set():
+                try:
+                    row = await self.cloud.get_suggestion(self.pending_id)
+                except Exception:
+                    row = None
+                if row and row.get("accepted") not in (None, "pending"):
+                    self.resolve(row["accepted"], row.get("actual_action"), row.get("actual_size"), self.pending_id)
+                    return
+                await asyncio.sleep(0.8)
+
+        poll = asyncio.create_task(poll_cloud())
         try:
             await asyncio.wait_for(self.decision_event.wait(), timeout)
         except asyncio.TimeoutError:
             return None
+        finally:
+            poll.cancel()
         return self.decision
 
     def resolve(self, kind, action=None, size=None, suggestion_id=None):

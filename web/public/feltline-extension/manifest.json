@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Feltline",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Suggested actions for Poker Now private tables. You confirm every move unless auto-play is on.",
   "permissions": [
     "storage",
@@ -10,7 +10,8 @@
   "host_permissions": [
     "https://www.pokernow.com/*",
     "https://www.pokernow.club/*",
-    "https://feltline-ten.vercel.app/*"
+    "https://feltline-ten.vercel.app/*",
+    "https://*.vercel.app/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -54,7 +55,8 @@
     },
     {
       "matches": [
-        "https://feltline-ten.vercel.app/*"
+        "https://feltline-ten.vercel.app/*",
+        "https://*.vercel.app/*"
       ],
       "js": [
         "hud-bridge.js"

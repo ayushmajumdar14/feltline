@@ -44,6 +44,10 @@ function InstallPage() {
             , add your Poker Now table, then open that game in this same Chrome profile.
           </li>
           <li>Open the coach page here. Take / Override / Ignore clicks on Poker Now.</li>
+          <li>
+            After you Reload the extension on chrome://extensions, also refresh the Poker Now tab and this site. Leaving
+            those tabs open is what causes “Extension context invalidated.”
+          </li>
         </ol>
         <p className="text-xs text-muted-foreground">Private tables only. You confirm every move unless auto-play is on.</p>
       </div>

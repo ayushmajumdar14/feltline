@@ -88,7 +88,21 @@ class TableTracker {
       if (this.raw.hI !== handBefore) this.history = [];
       else if (!("oTC" in payload)) this.recordActions(payload, betsBefore, highestBefore);
     }
+    this.inferMe();
     return event;
+  }
+
+  inferMe() {
+    if (this.me) return this.me;
+    const hole = this.raw.pC || {};
+    for (const [pid, info] of Object.entries(hole)) {
+      const cards = info?.cards || [];
+      if (cards.some((c) => c && (c.value || typeof c === "string"))) {
+        this.me = pid;
+        return pid;
+      }
+    }
+    return this.me;
   }
 
   recordActions(payload, betsBefore, highestBefore) {

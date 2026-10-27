@@ -58,6 +58,10 @@ This zip is only the extension. It is not the GitHub repo.
 
 6. Open the table's coach page on Feltline. Take / Override / Ignore
    there; the extension clicks on Poker Now.
+
+7. If Chrome says "Extension context invalidated", go to
+   chrome://extensions, click Reload on Feltline, then refresh the
+   Poker Now tab AND the Feltline coach tab.
 `,
 );
 

@@ -9,6 +9,26 @@ const SEL = {
   raiseBack: ".game-decisions-ctn form.raise-controller-form button.back",
 };
 
+function alive() {
+  try {
+    return Boolean(chrome.runtime && chrome.runtime.id);
+  } catch {
+    return false;
+  }
+}
+
+function send(payload) {
+  if (!alive()) return false;
+  try {
+    chrome.runtime.sendMessage(payload, () => {
+      void chrome.runtime.lastError;
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function visible(sel) {
   const el = document.querySelector(sel);
   if (!el) return null;
@@ -50,10 +70,24 @@ function clickAction(action, size) {
   return true;
 }
 
+function gameId() {
+  try {
+    const m = location.pathname.match(/\/games\/([A-Za-z0-9_-]+)/);
+    return m ? m[1] : "";
+  } catch {
+    return "";
+  }
+}
+
 function publish() {
-  if (!tracker.me) return;
-  const state = tracker.snapshot();
-  chrome.runtime.sendMessage({ source: "table-coach", from: "extension", ...state }).catch(() => {});
+  if (!alive()) return;
+  tracker.inferMe();
+  const hasTable = Boolean(tracker.me || Object.keys(tracker.raw.players || {}).length);
+  if (!hasTable) {
+    send({ source: "table-coach", from: "extension", type: "extension.hello", game_id: gameId() });
+    return;
+  }
+  send({ source: "table-coach", from: "extension", ...tracker.snapshot() });
 }
 
 window.addEventListener("message", (e) => {
@@ -62,12 +96,25 @@ window.addEventListener("message", (e) => {
   if (event === "registered" || event === "gC") publish();
 });
 
-chrome.runtime.onMessage.addListener((msg) => {
-  if (msg?.type === "user.decision") {
-    if (msg.decision === "ignore") return;
-    clickAction(msg.action, msg.size);
-  }
-  if (msg?.type === "ping") publish();
-});
+try {
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (!alive()) return;
+    if (msg?.type === "user.decision") {
+      if (msg.decision === "ignore") return;
+      clickAction(msg.action, msg.size);
+    }
+    if (msg?.type === "ping" || msg?.type === "hud.ready") publish();
+  });
+} catch {
+  /* context gone */
+}
 
-setInterval(publish, 2000);
+const tick = setInterval(() => {
+  if (!alive()) {
+    clearInterval(tick);
+    return;
+  }
+  publish();
+}, 1500);
+
+publish();

@@ -104,10 +104,13 @@ function CoachPage() {
   const [autoOpen, setAutoOpen] = useState(false);
   const [events, setEvents] = useState<string[]>([]);
   const [extLive, setExtLive] = useState<LiveTableState | null>(null);
+  const [extPresent, setExtPresent] = useState(false);
+
+  const gameMismatch = Boolean(table && !table.is_demo && table.game_id && extLive?.game_id && table.game_id !== extLive.game_id);
 
   const extOverlay = useMemo(() => {
     if (isLocalBot() || !table || table.is_demo || !extLive) return null;
-    if (table.game_id && extLive.game_id && table.game_id !== extLive.game_id) return null;
+    if (gameMismatch) return null;
     const sug = extLive.hero_turn || extLive.to_act === "hero" ? suggestLive(extLive, (settings.data?.strategy as "theory" | "equity") || "theory") : null;
     return {
       hand: {
@@ -126,7 +129,7 @@ function CoachPage() {
       actions: [] as { actor: string; action: string; amount: number | null; street: string }[],
       suggestions: sug ? [sug] : [],
     };
-  }, [extLive, table, settings.data?.strategy]);
+  }, [extLive, table, settings.data?.strategy, gameMismatch]);
 
   const pack = extOverlay ?? live.data;
   const oppById = useMemo(() => {
@@ -144,11 +147,22 @@ function CoachPage() {
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
       if (e.origin !== window.location.origin || e.data?.source !== HUD_SOURCE) return;
-      setEvents((prev) => [`${new Date().toLocaleTimeString()} ${e.data.type}`, ...prev].slice(0, 6));
-      if (e.data.from === "extension" && e.data.type === "table.state") setExtLive(e.data as LiveTableState);
+      if (e.data.from === "extension") {
+        setEvents((prev) => [`${new Date().toLocaleTimeString()} ${e.data.type}`, ...prev].slice(0, 6));
+        if (e.data.type === "extension.hello") setExtPresent(true);
+        if (e.data.type === "table.state") {
+          setExtPresent(true);
+          setExtLive(e.data as LiveTableState);
+        }
+      }
     };
     window.addEventListener("message", onMsg);
-    return () => window.removeEventListener("message", onMsg);
+    emitHud({ type: "hud.ready" });
+    const retry = window.setTimeout(() => emitHud({ type: "hud.ready" }), 800);
+    return () => {
+      window.removeEventListener("message", onMsg);
+      window.clearTimeout(retry);
+    };
   }, []);
 
   useEffect(() => {
@@ -252,14 +266,18 @@ function CoachPage() {
   if (tables.isLoading) return <p className="text-muted-foreground">Loading…</p>;
   if (!table) return <p className="text-muted-foreground">Table not found. <Link to="/tables" className="text-gold underline">Back to tables</Link></p>;
 
-  const extOn = Boolean(extLive) && !table.is_demo;
-  const connection = !table.is_demo && !extOn && !settings.data?.extension_connected && !isLocalBot()
+  const extOn = Boolean(extLive) && !table.is_demo && !gameMismatch;
+  const connection = !table.is_demo && !extPresent && !extOn && !settings.data?.extension_connected && !isLocalBot()
     ? "Disconnected"
-    : pending
-      ? "Your action"
-      : raw.live
-        ? "Waiting for turn"
-        : "Watching";
+    : gameMismatch
+      ? "Wrong table"
+      : pending
+        ? "Your action"
+        : raw.live
+          ? "Waiting for turn"
+          : extPresent
+            ? "Extension on"
+            : "Watching";
   const heroActs = (pack?.actions ?? []).filter((a) => a.street === (raw.street ?? "flop"));
 
   return (
@@ -310,7 +328,13 @@ function CoachPage() {
       />
 
       {!hand ? (
-        <WaitingForLive table={table} connected={extOn || !!settings.data?.extension_connected} />
+        <WaitingForLive
+          table={table}
+          connected={extOn || !!settings.data?.extension_connected}
+          extPresent={extPresent || extOn}
+          watchingId={extLive?.game_id ?? null}
+          mismatch={gameMismatch}
+        />
       ) : (
         <div className="grid gap-3 lg:grid-cols-[1fr_1.15fr_1fr]">
           {/* Center first on mobile */}
@@ -449,7 +473,19 @@ function CoachPage() {
   );
 }
 
-function WaitingForLive({ table, connected }: { table: { is_demo: boolean; pokernow_url: string; nickname: string | null; game_id: string | null }; connected: boolean }) {
+function WaitingForLive({
+  table,
+  connected,
+  extPresent,
+  watchingId,
+  mismatch,
+}: {
+  table: { is_demo: boolean; pokernow_url: string; nickname: string | null; game_id: string | null };
+  connected: boolean;
+  extPresent: boolean;
+  watchingId: string | null;
+  mismatch: boolean;
+}) {
   const local = isLocalBot();
   if (table.is_demo) {
     return <div className="hud-panel p-10 text-center text-muted-foreground">Loading the demo hand…</div>;
@@ -464,11 +500,47 @@ function WaitingForLive({ table, connected }: { table: { is_demo: boolean; poker
       </div>
     );
   }
+  if (mismatch) {
+    return (
+      <div className="hud-panel mx-auto max-w-xl space-y-3 p-8 text-center">
+        <p className="font-display text-xl font-semibold uppercase">Wrong Poker Now tab</p>
+        <p className="text-sm text-muted-foreground">
+          This coach is for <span className="font-mono">{table.game_id}</span>, but the extension is watching{" "}
+          <span className="font-mono">{watchingId}</span>. Open {table.pokernow_url} in this Chrome profile and leave this tab open.
+        </p>
+      </div>
+    );
+  }
+  if (connected) {
+    return (
+      <div className="hud-panel mx-auto max-w-xl space-y-3 p-8 text-center">
+        <p className="font-display text-xl font-semibold uppercase">Extension connected — waiting for a hand</p>
+        <p className="text-sm text-muted-foreground">
+          Sit at {table.pokernow_url}. A suggestion appears when it is your turn. Keep this tab open.
+        </p>
+      </div>
+    );
+  }
+  if (extPresent) {
+    return (
+      <div className="hud-panel mx-auto max-w-xl space-y-3 p-8 text-center">
+        <p className="font-display text-xl font-semibold uppercase">Extension is on — open the game</p>
+        <p className="text-sm text-muted-foreground">
+          Refresh the Poker Now tab, sit at the table, then come back here. Feltline needs that game tab alive in this same Chrome profile.
+        </p>
+        <p className="text-sm">
+          <a href={table.pokernow_url} target="_blank" rel="noreferrer" className="text-gold underline">
+            Open {table.game_id}
+          </a>
+        </p>
+      </div>
+    );
+  }
   return (
     <div className="hud-panel mx-auto max-w-xl space-y-4 p-8 text-center">
-      <p className="font-display text-xl font-semibold uppercase">{connected ? "Extension connected — waiting for a hand" : "Install the Feltline Chrome extension"}</p>
+      <p className="font-display text-xl font-semibold uppercase">Install the Feltline Chrome extension</p>
       <p className="text-sm text-muted-foreground">
-        Anyone can coach a private table from this website. Install the extension once, add the table link here, then open that Poker Now game in the same Chrome profile.
+        Chrome does not tell this page you loaded an unpacked zip until the extension can talk. If you already installed it, reload the extension, then refresh this tab and the Poker Now tab.
       </p>
       <ol className="space-y-1 text-left text-sm text-muted-foreground">
         <li>
@@ -479,7 +551,8 @@ function WaitingForLive({ table, connected }: { table: { is_demo: boolean; poker
           — not GitHub, just the extension.
         </li>
         <li>2. Unzip, then Chrome → chrome://extensions → Developer mode → Load unpacked → that folder</li>
-        <li>3. Open {table.pokernow_url} and keep this coach tab open</li>
+        <li>3. If Feltline is already listed, click Reload on it (that is what “Extension context invalidated” means)</li>
+        <li>4. Refresh this coach tab and {table.pokernow_url}</li>
       </ol>
       <p className="text-sm text-muted-foreground">
         Or try the{" "}

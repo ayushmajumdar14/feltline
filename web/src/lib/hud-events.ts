@@ -23,7 +23,9 @@ export type HudEvent =
     }
   | { type: "table.suggestion"; action: string; size: number | null; reason: string; confidence: number }
   | { type: "user.decision"; decision: "take" | "override" | "ignore"; action?: string | undefined; size?: number | null | undefined }
-  | { type: "user.autoplay"; enabled: boolean };
+  | { type: "user.autoplay"; enabled: boolean }
+  | { type: "hud.ready" }
+  | { type: "extension.hello"; game_id?: string; from?: "extension" };
 
 export const HUD_SOURCE = "table-coach";
 

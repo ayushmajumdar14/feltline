@@ -12,6 +12,7 @@ Or load this folder unpacked:
 2. Turn on **Developer mode**
 3. **Load unpacked** → choose this `extension` folder
 4. Pin Feltline
+5. After Reload, refresh the Poker Now tab and the Feltline coach tab (or Chrome throws “Extension context invalidated”)
 
 ## Use
 

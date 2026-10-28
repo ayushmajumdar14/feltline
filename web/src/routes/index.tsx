@@ -59,7 +59,12 @@ function Landing() {
               <Link to="/install">Get the Chrome extension</Link>
             </Button>
           </div>
-          <p className="mt-4 text-xs text-muted-foreground">Not a casino. No real-money wallet. No public rooms.</p>
+          <p className="mt-4 text-xs text-muted-foreground">
+            Not a casino. No real-money wallet. No public rooms.{" "}
+            <Link to="/privacy" className="text-gold underline">
+              Privacy
+            </Link>
+          </p>
         </div>
         <div className="hud-panel glow-gold p-6">
           <p className="hud-label">Suggested action · Flop</p>

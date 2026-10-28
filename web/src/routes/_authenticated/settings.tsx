@@ -211,6 +211,19 @@ function SettingsPage() {
         <pre className="overflow-x-auto rounded bg-sidebar p-3 font-mono text-xs">{CONTRACT_DOC}</pre>
       </Panel>
 
+      <Panel title="Privacy" className="md:col-span-2">
+        <p className="text-sm text-muted-foreground">
+          The extension reads the live Poker Now hand (cards, stacks, names) and keeps a session copy so this coach tab
+          can reconnect. Your email and workspace (tables, hands, opponent book) live in your Feltline account. We do
+          not sell that data. Export or delete it below.
+        </p>
+        <p className="text-sm">
+          <Link to="/privacy" className="text-gold underline">
+            Full privacy policy
+          </Link>
+        </p>
+      </Panel>
+
       <Panel title="Danger zone" className="border-destructive/50 md:col-span-2">
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={exportData}>Export my data</Button>

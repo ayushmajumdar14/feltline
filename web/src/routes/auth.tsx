@@ -118,6 +118,11 @@ function AuthPage() {
                 {mode === "in" ? "Create a workspace" : "Sign in"}
               </button>
             </p>
+            <p className="text-center text-xs text-muted-foreground">
+              <Link to="/privacy" className="text-gold underline">
+                Privacy
+              </Link>
+            </p>
           </form>
         )}
       </div>

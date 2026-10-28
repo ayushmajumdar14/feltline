@@ -84,6 +84,9 @@ function Shell() {
             </Button>
           )}
           {isLocalBot() && <span className="ml-auto font-mono text-[11px] text-muted-foreground">Local bot</span>}
+          <Link to="/privacy" className="shrink-0 font-display text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground">
+            Privacy
+          </Link>
         </div>
       </header>
       <main className="mx-auto max-w-[1500px] p-3 md:p-4">

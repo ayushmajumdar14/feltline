@@ -49,7 +49,12 @@ function InstallPage() {
             those tabs open is what causes “Extension context invalidated.”
           </li>
         </ol>
-        <p className="text-xs text-muted-foreground">Private tables only. You confirm every move unless auto-play is on.</p>
+        <p className="text-xs text-muted-foreground">
+          Private tables only. You confirm every move unless auto-play is on.{" "}
+          <Link to="/privacy" className="text-gold underline">
+            Privacy
+          </Link>
+        </p>
       </div>
     </div>
   );

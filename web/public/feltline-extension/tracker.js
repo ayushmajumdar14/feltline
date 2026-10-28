@@ -148,6 +148,7 @@ class TableTracker {
       const hit = seats.find((s) => s[1] === pid);
       return hit ? hit[0] : 0;
     };
+    const inHand = (pid) => statuses[pid] !== "fold";
     return {
       type: "table.state",
       game_id: gameIdFromUrl(location.href),
@@ -156,21 +157,24 @@ class TableTracker {
       pot: chips(raw.pot) + streetBets,
       board,
       hero_cards: heroCards,
+      hero_id: me || "",
+      hero_seat: seatOf(me),
       hero_stack: stack,
+      hero_bet: myBet,
+      dealer_seat: raw.dealerSeat ?? null,
       amount_to_call: Math.min(Math.max(highest - myBet, 0), stack),
       min_raise_to: chips(raw.mR) || null,
       big_blind: chips(raw.bigBlind) || 2,
       hero_turn: this.heroTurn,
       to_act: this.heroTurn ? "hero" : raw.cPI || "",
-      seats: Object.keys(players)
-        .filter((pid) => pid !== me)
-        .map((pid) => ({
-          seat: seatOf(pid),
-          player_id: pid,
-          name: players[pid]?.name || pid,
-          stack: chips(players[pid]?.stack),
-          in_hand: statuses[pid] !== "fold",
-        })),
+      history: this.history.slice(-48),
+      seats: Object.keys(players).map((pid) => ({
+        seat: seatOf(pid),
+        player_id: pid,
+        name: players[pid]?.name || pid,
+        stack: chips(players[pid]?.stack),
+        in_hand: pid === me ? true : inHand(pid),
+      })),
     };
   }
 }

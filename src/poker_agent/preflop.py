@@ -33,6 +33,38 @@ class Seat:
         return OPEN_BY_DISTANCE[min(self.distance, len(OPEN_BY_DISTANCE) - 1)]
 
 
+def effective_bb(hero_stack: float, stacks: list[float], big_blind: float) -> float:
+    """Chips behind as big blinds vs the shortest opponent still in."""
+    others = [s for s in stacks if s > 0]
+    eff = min([hero_stack] + others) if others else hero_stack
+    return max(eff, 0.0) / max(big_blind, 1e-9)
+
+
+def stack_open_mult(stack_bb: float) -> float:
+    """100bb charts: shove wider when short, tighten a bit when very deep."""
+    if stack_bb <= 8:
+        return 1.55
+    if stack_bb <= 15:
+        return 1.35
+    if stack_bb <= 25:
+        return 1.18
+    if stack_bb <= 40:
+        return 1.08
+    if stack_bb >= 200:
+        return 0.82
+    if stack_bb >= 150:
+        return 0.90
+    return 1.0
+
+
+def sized_open_share(seat: Seat, stack_bb: float = 100.0) -> float:
+    base = seat.open_share
+    if base <= 0:
+        return 0.0
+    cap = 0.92 if seat.players <= 2 else 0.55
+    return min(cap, max(0.06, base * stack_open_mult(stack_bb)))
+
+
 def opening_range(seat: Seat) -> Range:
     return Range.top(seat.open_share or 0.15)
 
@@ -70,7 +102,9 @@ def preflop_decision(state, ctx, rng) -> Decision:
     max_to = state.hero_bet + state.hero_stack
     min_to = state.min_raise_to or highest + bb
     callers = sum(1 for h in history if h[2] == "call")
-    note = f"chart {cls}"
+    opp_stacks = [p.stack for p in state.players if getattr(p, "player_id", None) != state.hero_id]
+    stack_bb = effective_bb(state.hero_stack, opp_stacks, bb)
+    note = f"chart {cls} {stack_bb:.0f}bb"
 
     def raise_to(amount, why):
         amount = min(max(min_to, round(amount)), max_to)
@@ -86,12 +120,14 @@ def preflop_decision(state, ctx, rng) -> Decision:
     if not raises:
         limpers = sum(1 for h in history if h[2] == "call")
         if limpers == 0:
-            share = seat.open_share if not seat.big_blind else 0.0
+            share = sized_open_share(seat, stack_bb) if not seat.big_blind else 0.0
             if seat.big_blind:
                 return passive("big blind checks")
             if _mixed(rng, in_top(cls, share)):
                 size = 3 * bb if seat.small_blind and seat.players > 2 else 2.5 * bb
-                return raise_to(size, f"open {share:.0%}")
+                if stack_bb <= 15 or size >= 0.35 * max_to:
+                    return raise_to(max_to, f"open jam {stack_bb:.0f}bb")
+                return raise_to(size, f"open {share:.0%} ({stack_bb:.0f}bb)")
             return passive(f"outside {share:.0%} open")
         iso = (seat.open_share or 0.15) * 0.6 if not seat.big_blind else 0.15
         if _mixed(rng, in_top(cls, iso)):
@@ -110,8 +146,12 @@ def preflop_decision(state, ctx, rng) -> Decision:
             call *= 0.6
         size = highest * (3 if not (seat.small_blind or seat.big_blind) else 4) + callers * highest
         if _mixed(rng, in_top(cls, value)):
+            if stack_bb <= 25 or size >= 0.4 * max_to:
+                return raise_to(max_to, f"value 3-bet jam {stack_bb:.0f}bb")
             return raise_to(size, "value 3-bet")
         if _suited(cls) and _mixed(rng, band_weight(cls, b_lo, b_hi) * 0.6):
+            if stack_bb <= 20:
+                return raise_to(max_to, "3-bet jam bluff")
             return raise_to(size, "3-bet bluff")
         if _mixed(rng, band_weight(cls, value, call) + in_top(cls, value)):
             return Decision(Action.CALL, reason=f"{note}, flat {call:.0%}")
@@ -134,18 +174,46 @@ def preflop_decision(state, ctx, rng) -> Decision:
     return passive("fold to 4-bet+")
 
 
-def preflop_range_for(action_kind: str, seat: Seat, profile=None) -> Range:
-    """Range a player is likely to hold after their preflop line."""
+def _jammed(stack_bb: float, raise_to_bb: float | None) -> bool:
+    if stack_bb <= 15:
+        return True
+    return raise_to_bb is not None and raise_to_bb >= 0.7 * max(stack_bb, 1.0)
+
+
+def preflop_range_for(action_kind: str, seat: Seat, profile=None, stack_bb: float = 100.0,
+                      raise_to_bb: float | None = None, facing_bb: float | None = None) -> Range:
+    """Range after this player's preflop line, sized by stack depth and the raise they made or faced."""
     vpip = profile.looseness if profile else None
     pfr = profile.raising if profile else None
+    open_w = sized_open_share(seat, stack_bb) or 0.12
+    if pfr and profile and profile.hands >= 15:
+        open_w = min(0.85, max(0.06, pfr * stack_open_mult(stack_bb)))
+    jammed = _jammed(stack_bb, raise_to_bb)
+
     if action_kind == "open":
-        return Range.top(pfr if pfr and profile.hands >= 15 else max(seat.open_share, 0.12), floor=0.0)
+        if jammed:
+            width = min(0.40, open_w * (1.15 if stack_bb <= 10 else 0.85))
+            return Range.top(width, floor=0.0)
+        if raise_to_bb is not None and raise_to_bb <= 2.2:
+            return Range.top(min(0.55, open_w * 1.15), floor=0.0)
+        return Range.top(open_w, floor=0.0)
     if action_kind == "3bet":
-        return Range.top(0.06).add(Range.band(0.10, 0.20).scale(0.25))
+        if jammed:
+            return Range.top(min(0.18, 0.11 if stack_bb <= 12 else 0.08))
+        value, bluff_hi = (0.05, 0.16) if (raise_to_bb and raise_to_bb >= 9) else (0.06, 0.20)
+        return Range.top(value).add(Range.band(0.10, bluff_hi).scale(0.25))
     if action_kind == "4bet":
-        return Range.top(0.03)
+        return Range.top(0.05 if jammed else 0.03)
     if action_kind == "call_raise":
-        width = vpip if vpip and profile.hands >= 15 else (0.45 if seat.big_blind else 0.18)
+        width = vpip if vpip and profile and profile.hands >= 15 else (0.45 if seat.big_blind else 0.18)
+        if facing_bb and facing_bb >= 8:
+            width = min(width, 0.10)
+        elif facing_bb and facing_bb >= 4:
+            width *= 0.7
+        elif facing_bb and facing_bb <= 2.2:
+            width = min(0.50, width * 1.15)
+        if stack_bb <= 20:
+            width = min(width, 0.12)
         return Range.band(0.04, max(width, 0.06), top_weight=0.3)
     if action_kind == "limp":
         width = vpip if vpip else 0.35

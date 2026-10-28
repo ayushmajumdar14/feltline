@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Feltline",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Suggested actions for Poker Now private tables. You confirm every move unless auto-play is on.",
   "permissions": [
     "storage",

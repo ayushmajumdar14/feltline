@@ -4,7 +4,7 @@ import numpy as np
 from poker_agent.cards import DECK, rank_hand, score, to_ints
 from poker_agent.models import Action, GameState, Player
 from poker_agent.pokernow_state import TableTracker
-from poker_agent.preflop import Seat, preflop_decision
+from poker_agent.preflop import Seat, effective_bb, preflop_decision, preflop_range_for
 from poker_agent.ranges import Range, equity_vs_ranges
 from poker_agent.river import solve
 from poker_agent.sim import SimStats, make_strategy, play_hand
@@ -99,6 +99,33 @@ def test_tracker_builds_action_history_from_diffs():
     assert t.history == [("a", "preflop", "raise", 60), ("me", "preflop", "call", 60),
                          ("me", "flop", "check", None), ("a", "flop", "bet", 40), ("me", "flop", "fold", None)]
     assert t.preflop_raiser == "a" and t.dealt_order() == ["me", "a"]
+
+
+def test_effective_stack_uses_shortest_player():
+    assert effective_bb(200, [40, 180], 2) == 20
+    assert effective_bb(18, [200], 2) == 9
+
+
+def test_short_stack_open_jams():
+    rng = random.Random(2)
+    ctx = HandContext(seat=Seat(distance=0, players=6))
+    state = GameState("h", "me", 20, ("As", "Kd"), (), pot=3, amount_to_call=2, min_raise_to=4,
+                      big_blind=2, hero_turn=True, parse_confidence=1, hero_bet=0,
+                      players=[Player("me", 0, 20)] + [Player(f"p{i}", i, 200) for i in range(1, 6)])
+    d = preflop_decision(state, ctx, rng)
+    assert d.action in (Action.RAISE, Action.BET)
+    assert d.amount == 20
+    assert "jam" in d.reason
+
+
+def test_preflop_range_uses_line_and_stack():
+    btn = Seat(distance=0, players=6)
+    open_100 = preflop_range_for("open", btn, stack_bb=100, raise_to_bb=2.5)
+    jam_10 = preflop_range_for("open", btn, stack_bb=10, raise_to_bb=10)
+    call_vs_jam = preflop_range_for("call_raise", Seat(big_blind=True, players=6), stack_bb=100, facing_bb=20)
+    call_vs_min = preflop_range_for("call_raise", Seat(big_blind=True, players=6), stack_bb=100, facing_bb=2.2)
+    assert jam_10.total() < open_100.total()
+    assert call_vs_jam.total() < call_vs_min.total()
 
 
 def test_theory_strategy_folds_weak_hand_to_big_river_bet_from_passive_player():

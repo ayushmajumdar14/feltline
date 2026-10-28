@@ -47,6 +47,31 @@ def preflop_line(pid, history) -> str:
     return line
 
 
+def line_sizing(pid, history, big_blind: float):
+    """(raise_to_bb this player put in, facing_bb of the last raise they saw)."""
+    raise_to_bb = facing_bb = None
+    bb = max(big_blind, 1e-9)
+    for actor, street, action, amount in history:
+        if street != "preflop" or amount is None:
+            continue
+        size = amount / bb
+        if action in ("bet", "raise"):
+            if actor == pid:
+                raise_to_bb = size
+            else:
+                facing_bb = size
+        elif action == "call" and actor == pid:
+            facing_bb = facing_bb or size
+    return raise_to_bb, facing_bb
+
+
+def player_stack_bb(state: GameState, pid: str) -> float:
+    mine = next((p.stack for p in state.players if p.player_id == pid), state.hero_stack)
+    others = [p.stack for p in state.players if p.player_id != pid and p.stack > 0]
+    eff = min([mine] + others) if others else mine
+    return max(eff, 0.0) / max(state.big_blind, 1e-9)
+
+
 class TheoryStrategy(Strategy):
     def __init__(self, iterations=400, rng=None, bluffing=True, solver_iterations=300):
         self.iterations = iterations
@@ -70,7 +95,15 @@ class TheoryStrategy(Strategy):
             entry = cache.get(pid)
             postflop = [h for h in ctx.history if h[0] == pid and h[1] in STREET_CARDS]
             if entry is None or entry[0] > len(postflop):
-                start = preflop_range_for(preflop_line(pid, ctx.history), seat, ctx.profile(pid))
+                raise_to_bb, facing_bb = line_sizing(pid, ctx.history, state.big_blind)
+                start = preflop_range_for(
+                    preflop_line(pid, ctx.history),
+                    seat,
+                    ctx.profile(pid),
+                    stack_bb=player_stack_bb(state, pid),
+                    raise_to_bb=raise_to_bb,
+                    facing_bb=facing_bb,
+                )
                 if pid != state.hero_id:
                     start.remove(to_ints(state.hero_cards))
                 entry = (0, start)

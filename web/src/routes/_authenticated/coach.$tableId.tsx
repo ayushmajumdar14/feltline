@@ -6,7 +6,7 @@ import { opponentsQ, settingsQ, tablesQ, useSetTableStatus, useStats } from "@/l
 import { ACTIONS, autoplayDelayMs, formatSuggestion, pct, type Action } from "@/lib/poker";
 import { advanceDemo, dealNextDemoHand } from "@/lib/demo-stream";
 import { emitHud, HUD_SOURCE } from "@/lib/hud-events";
-import { suggestLive, type LiveTableState } from "@/lib/suggest";
+import { profilesFromStats, suggestLive, type LiveTableState } from "@/lib/suggest";
 import { isLocalBot } from "@/lib/local";
 import * as bot from "@/lib/bot-api";
 import { PlayingCard } from "@/components/hud/PlayingCard";
@@ -39,7 +39,7 @@ function CoachPage() {
   const tables = useQuery(tablesQ);
   const settings = useQuery(settingsQ);
   const opponents = useQuery(opponentsQ);
-  const { stats } = useStats();
+  const { stats, book } = useStats();
   const setStatus = useSetTableStatus();
   const table = tables.data?.find((t) => t.id === tableId);
 
@@ -111,7 +111,9 @@ function CoachPage() {
   const extOverlay = useMemo(() => {
     if (isLocalBot() || !table || table.is_demo || !extLive) return null;
     if (gameMismatch) return null;
-    const sug = extLive.hero_turn || extLive.to_act === "hero" ? suggestLive(extLive, (settings.data?.strategy as "theory" | "equity") || "theory") : null;
+    const profiles = profilesFromStats(extLive, opponents.data ?? [], stats);
+    const sug = extLive.hero_turn || extLive.to_act === "hero" ? suggestLive(extLive, (settings.data?.strategy as "theory" | "equity") || "theory", profiles) : null;
+    const heroId = extLive.hero_id;
     return {
       hand: {
         id: `ext-${extLive.game_id}-${extLive.hand_number}`,
@@ -125,11 +127,13 @@ function CoachPage() {
           hero_stack: extLive.hero_stack,
         } as Raw,
       },
-      players: extLive.seats.map((s) => ({ id: s.player_id, opponent_id: s.player_id, seat: s.seat, stack: s.stack })),
-      actions: [] as { actor: string; action: string; amount: number | null; street: string }[],
+      players: extLive.seats
+        .filter((s) => s.player_id !== heroId && s.in_hand !== false)
+        .map((s) => ({ id: s.player_id, opponent_id: s.player_id, seat: s.seat, stack: s.stack })),
+      actions: (extLive.history ?? []).map(([actor, street, action, amount]) => ({ actor, street, action, amount })),
       suggestions: sug ? [sug] : [],
     };
-  }, [extLive, table, settings.data?.strategy, gameMismatch]);
+  }, [extLive, table, settings.data?.strategy, gameMismatch, opponents.data, book]);
 
   const pack = extOverlay ?? live.data;
   const oppById = useMemo(() => {

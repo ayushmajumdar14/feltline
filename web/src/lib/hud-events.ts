@@ -16,6 +16,11 @@ export type HudEvent =
       to_act: "hero" | string;
       from?: "extension";
       hero_stack?: number;
+      hero_bet?: number;
+      hero_id?: string;
+      hero_seat?: number;
+      dealer_seat?: number;
+      history?: [string, string, string, number | null][];
       amount_to_call?: number;
       min_raise_to?: number | null;
       big_blind?: number;

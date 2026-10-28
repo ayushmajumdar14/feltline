@@ -174,6 +174,36 @@ export type Database = {
         }
         Relationships: []
       }
+      billing: {
+        Row: {
+          plan: string
+          plan_expires_at: string | null
+          plan_status: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          plan?: string
+          plan_expires_at?: string | null
+          plan_status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          plan?: string
+          plan_expires_at?: string | null
+          plan_status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           bio: string

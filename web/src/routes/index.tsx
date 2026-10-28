@@ -58,6 +58,9 @@ function Landing() {
             <Button asChild variant="outline" size="lg">
               <Link to="/install">Get the Chrome extension</Link>
             </Button>
+            <Button asChild variant="outline" size="lg">
+              <a href="/pricing">$3/mo · $25/yr · $50 life</a>
+            </Button>
           </div>
           <p className="mt-4 text-xs text-muted-foreground">
             Not a casino. No real-money wallet. No public rooms.{" "}

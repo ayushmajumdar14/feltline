@@ -80,7 +80,14 @@ VITE_SUPABASE_URL
 VITE_SUPABASE_PUBLISHABLE_KEY
 SUPABASE_URL
 SUPABASE_PUBLISHABLE_KEY
+SUPABASE_SERVICE_ROLE_KEY
+STRIPE_SECRET_KEY
+STRIPE_WEBHOOK_SECRET
+SITE_URL=https://feltline-ten.vercel.app
+VITE_BILLING=1
 ```
+
+Paid live tables ($3/month, $25/year, $50 lifetime) use Stripe Checkout. Run `web/drizzle/migrations/0002_billing.sql` in the Supabase SQL editor, then add a Stripe webhook to `https://feltline-ten.vercel.app/api/stripe/webhook` for `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, and `invoice.payment_failed`. The demo table stays free.
 
 In the Supabase project, add the Vercel URL to Auth → Redirect URLs and to allowed origins. Signup already creates a `profiles` row, default settings, and a demo table (`handle_new_user` in `web/drizzle/migrations`).
 

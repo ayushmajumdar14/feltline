@@ -2,7 +2,9 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { settingsQ, tablesQ } from "@/lib/queries";
+import { billingQ, settingsQ, tablesQ } from "@/lib/queries";
+import { paywallOn, planLabel } from "@/lib/billing";
+import { openBillingPortal } from "@/lib/checkout";
 import { isLocalBot } from "@/lib/local";
 import * as bot from "@/lib/bot-api";
 import { CONSENT_ITEMS, canEnableAutoplay } from "@/lib/poker";
@@ -36,6 +38,7 @@ function SettingsPage() {
   const navigate = useNavigate();
   const settings = useQuery(settingsQ);
   const tables = useQuery(tablesQ);
+  const billing = useQuery(billingQ);
   const s = settings.data;
   const [form, setForm] = useState({ nickname: "", buy_in: "", small_blind: "", big_blind: "" });
   const [checks, setChecks] = useState([false, false, false, false]);
@@ -210,6 +213,33 @@ function SettingsPage() {
         <p className="text-sm text-muted-foreground">Live table state is either pushed by the local companion or, on this machine, by poker-agent serve.</p>
         <pre className="overflow-x-auto rounded bg-sidebar p-3 font-mono text-xs">{CONTRACT_DOC}</pre>
       </Panel>
+
+      {!isLocalBot() && (
+        <Panel title="Plan" className="md:col-span-2">
+          <p className="text-sm text-muted-foreground">{planLabel(billing.data)}</p>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="take">
+              <a href="/pricing">Change plan</a>
+            </Button>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                try {
+                  await openBillingPortal();
+                } catch (e) {
+                  toast.error(e instanceof Error ? e.message : "Could not open Stripe");
+                }
+              }}
+            >
+              Billing portal
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            $3/month, $25/year, or $50 lifetime. Cards are charged by Stripe.
+            {!paywallOn() && " Live paywall is off until VITE_BILLING=1 is set on Vercel."}
+          </p>
+        </Panel>
+      )}
 
       <Panel title="Privacy" className="md:col-span-2">
         <p className="text-sm text-muted-foreground">

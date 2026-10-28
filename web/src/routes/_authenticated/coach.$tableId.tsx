@@ -2,7 +2,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { opponentsQ, settingsQ, tablesQ, useSetTableStatus, useStats } from "@/lib/queries";
+import { billingQ, opponentsQ, settingsQ, tablesQ, useSetTableStatus, useStats } from "@/lib/queries";
+import { canUseLiveTables } from "@/lib/billing";
+import { Paywall } from "@/components/hud/Paywall";
 import { ACTIONS, autoplayDelayMs, formatSuggestion, pct, type Action } from "@/lib/poker";
 import { advanceDemo, dealNextDemoHand } from "@/lib/demo-stream";
 import { emitHud, HUD_SOURCE } from "@/lib/hud-events";
@@ -38,6 +40,7 @@ function CoachPage() {
   const qc = useQueryClient();
   const tables = useQuery(tablesQ);
   const settings = useQuery(settingsQ);
+  const billing = useQuery(billingQ);
   const opponents = useQuery(opponentsQ);
   const { stats, book } = useStats();
   const setStatus = useSetTableStatus();
@@ -269,6 +272,9 @@ function CoachPage() {
 
   if (tables.isLoading) return <p className="text-muted-foreground">Loading…</p>;
   if (!table) return <p className="text-muted-foreground">Table not found. <Link to="/tables" className="text-gold underline">Back to tables</Link></p>;
+  if (!table.is_demo && !isLocalBot() && !canUseLiveTables(billing.data)) {
+    return <Paywall />;
+  }
 
   const extOn = Boolean(extLive) && !table.is_demo && !gameMismatch;
   const connection = !table.is_demo && !extPresent && !extOn && !settings.data?.extension_connected && !isLocalBot()

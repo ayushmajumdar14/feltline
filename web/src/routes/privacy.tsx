@@ -48,7 +48,8 @@ export function PrivacyBody() {
       <p>
         Table state is sent from the Poker Now tab to the Feltline coach tab in the same Chrome profile so we can
         suggest fold / check / call / bet / raise. Names and ids label seats and build an opponent book (VPIP, PFR,
-        fold-to-bet). We do not sell this data, do not use it for ads, and do not run remotely hosted extension code.
+        fold-to-bet). Paid plans are billed by Stripe; we store plan status and Stripe customer / subscription ids, not
+        your card number. We do not sell this data, do not use it for ads, and do not run remotely hosted extension code.
       </p>
 
       <h2 className="font-display text-lg font-semibold uppercase text-foreground">Who can see it</h2>

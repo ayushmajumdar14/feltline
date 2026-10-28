@@ -2,7 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { handsQ, tablesQ, bookQ } from "@/lib/queries";
+import { billingQ, handsQ, tablesQ, bookQ } from "@/lib/queries";
+import { canUseLiveTables, paywallOn } from "@/lib/billing";
 import { parsePokerNowUrl } from "@/lib/poker";
 import { isLocalBot } from "@/lib/local";
 import * as bot from "@/lib/bot-api";
@@ -29,6 +30,8 @@ function TablesPage() {
   const tables = useQuery(tablesQ);
   const hands = useQuery(handsQ);
   const book = useQuery(bookQ);
+  const billing = useQuery(billingQ);
+  const paid = isLocalBot() || canUseLiveTables(billing.data);
   const [url, setUrl] = useState("");
   const [nick, setNick] = useState("");
 
@@ -36,6 +39,7 @@ function TablesPage() {
     e.preventDefault();
     const gid = parsePokerNowUrl(url);
     if (!gid) return void toast.error("Paste a Poker Now game link, like https://www.pokernow.club/games/abc123");
+    if (!paid) return void toast.error("A paid plan is required for live tables.");
     try {
       if (isLocalBot()) await bot.postTable({ pokernow_url: url.trim(), game_id: gid, nickname: nick || gid });
       else {
@@ -55,10 +59,19 @@ function TablesPage() {
   const list = tables.data ?? [];
   return (
     <div className="space-y-4">
+      {paywallOn() && !paid && (
+        <p className="text-sm text-muted-foreground">
+          Demo is free. Live tables need a plan —{" "}
+          <a href="/pricing" className="text-gold underline">
+            $3/mo, $25/year, or $50 lifetime
+          </a>
+          .
+        </p>
+      )}
       <form onSubmit={add} className="hud-panel flex flex-col gap-2 p-3 md:flex-row">
-        <Input placeholder="https://www.pokernow.club/games/…" value={url} onChange={(e) => setUrl(e.target.value)} />
-        <Input placeholder="Nickname (optional)" className="md:max-w-56" value={nick} onChange={(e) => setNick(e.target.value)} />
-        <Button type="submit" variant="take">Add table</Button>
+        <Input placeholder="https://www.pokernow.club/games/…" value={url} onChange={(e) => setUrl(e.target.value)} disabled={!paid} />
+        <Input placeholder="Nickname (optional)" className="md:max-w-56" value={nick} onChange={(e) => setNick(e.target.value)} disabled={!paid} />
+        <Button type="submit" variant="take" disabled={!paid}>{paid ? "Add table" : "Unlock live"}</Button>
       </form>
       {!isLocalBot() && (
         <p className="text-sm text-muted-foreground">

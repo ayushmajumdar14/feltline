@@ -3,6 +3,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { computeStats, type ActionRow, type OppStats } from "./poker";
 import { isLocalBot } from "./local";
 import * as bot from "./bot-api";
+import type { BillingRow } from "./billing";
 
 type Settings = Database["public"]["Tables"]["settings"]["Row"];
 type Table = Database["public"]["Tables"]["tables"]["Row"];
@@ -21,6 +22,15 @@ async function must<T>(p: PromiseLike<{ data: T; error: { message: string } | nu
   return data;
 }
 
+export const billingQ = queryOptions({
+  queryKey: ["billing"],
+  queryFn: async () => {
+    if (isLocalBot()) return { user_id: "local", plan: "lifetime", plan_status: "active", stripe_customer_id: null, stripe_subscription_id: null, plan_expires_at: null, updated_at: new Date().toISOString() } as BillingRow;
+    const { data, error } = await (await sb()).from("billing").select("*").maybeSingle();
+    if (error) return null;
+    return data as BillingRow | null;
+  },
+});
 export const settingsQ = queryOptions({
   queryKey: ["settings"],
   queryFn: async () => (isLocalBot() ? bot.getSettings() : must((await sb()).from("settings").select("*").maybeSingle())) as Settings,
